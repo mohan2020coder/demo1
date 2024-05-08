@@ -23,6 +23,7 @@ type Repository struct {
 	DB *gorm.DB
 }
 
+// CreateBook adds a new book
 func (r *Repository) CreateBook(context *gin.Context) {
 	var book Book
 	if err := context.ShouldBindJSON(&book); err != nil {
@@ -38,6 +39,7 @@ func (r *Repository) CreateBook(context *gin.Context) {
 	context.JSON(http.StatusOK, gin.H{"message": "book has been added"})
 }
 
+// DeleteBook deletes a book by ID
 func (r *Repository) DeleteBook(context *gin.Context) {
 	id := context.Param("id")
 	var book Book
@@ -50,6 +52,7 @@ func (r *Repository) DeleteBook(context *gin.Context) {
 	context.JSON(http.StatusOK, gin.H{"message": "book deleted successfully"})
 }
 
+// GetBooks returns all books
 func (r *Repository) GetBooks(context *gin.Context) {
 	var books []Book
 
@@ -61,6 +64,7 @@ func (r *Repository) GetBooks(context *gin.Context) {
 	context.JSON(http.StatusOK, gin.H{"message": "books fetched successfully", "data": books})
 }
 
+// GetBookByID returns a book by ID
 func (r *Repository) GetBookByID(context *gin.Context) {
 	id := context.Param("id")
 	var book Book
@@ -73,6 +77,26 @@ func (r *Repository) GetBookByID(context *gin.Context) {
 	context.JSON(http.StatusOK, gin.H{"message": "book fetched successfully", "data": book})
 }
 
+// InsertDummyData inserts 5 dummy book records into the database
+func (r *Repository) InsertDummyData() error {
+	// Dummy data
+	dummyBooks := []Book{
+		{Author: "John Doe", Title: "Dummy Book 1", Publisher: "Publisher A"},
+		{Author: "Jane Smith", Title: "Dummy Book 2", Publisher: "Publisher B"},
+		{Author: "Alice Johnson", Title: "Dummy Book 3", Publisher: "Publisher C"},
+		{Author: "Bob Brown", Title: "Dummy Book 4", Publisher: "Publisher D"},
+		{Author: "Emma White", Title: "Dummy Book 5", Publisher: "Publisher E"},
+	}
+
+	// Insert dummy data into the database
+	if err := r.DB.Create(&dummyBooks).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SetupRoutes configures API routes
 func (r *Repository) SetupRoutes(router *gin.Engine) {
 	api := router.Group("/api")
 	{
@@ -84,10 +108,12 @@ func (r *Repository) SetupRoutes(router *gin.Engine) {
 }
 
 func main() {
+	// Load environment variables from .env file
 	if err := godotenv.Load(".env"); err != nil {
 		log.Fatal(err)
 	}
 
+	// Establish database connection
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
 		os.Getenv("DB_HOST"), os.Getenv("DB_USER"), os.Getenv("DB_PASS"),
 		os.Getenv("DB_NAME"), os.Getenv("DB_PORT"), os.Getenv("DB_SSLMODE"))
@@ -97,15 +123,25 @@ func main() {
 		log.Fatal("could not connect to database: ", err)
 	}
 
-	err = db.AutoMigrate(&Book{})
-	if err != nil {
+	// Migrate the database schema
+	if err := db.AutoMigrate(&Book{}); err != nil {
 		log.Fatal("could not migrate database: ", err)
 	}
 
+	// Initialize repository
 	repo := &Repository{DB: db}
 
+	// Insert dummy data
+	if err := repo.InsertDummyData(); err != nil {
+		log.Fatal("could not insert dummy data: ", err)
+	}
+
+	// Initialize Gin router
 	router := gin.Default()
 	repo.SetupRoutes(router)
 
-	router.Run(":8080")
+	// Start HTTP server
+	if err := router.Run(":8080"); err != nil {
+		log.Fatal("could not start server: ", err)
+	}
 }
